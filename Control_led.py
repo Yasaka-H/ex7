@@ -1,0 +1,104 @@
+#coding: utf-8
+import RPi.GPIO as GPIO
+import time
+import dht11
+import datetime
+
+GPIO.setwarnings(False)
+GPIO.cleanup()
+
+#make sensor instance
+#read data using pin GPIO 14
+instance = dht11.DHT11(pin=14)
+
+#macro of LED pin number
+#use GPIO num
+GPIO_PORTS = {
+    "w":22,
+    "g":23,
+    "y":24,
+    "r":25,
+}
+button = 18
+
+#setting
+#led
+for key, num in GPIO_PORTS.items():
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setup(num,GPIO.OUT,initial=GPIO.LOW)
+#button
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(button,GPIO.IN,pull_up_down=GPIO.PUD_DOWN)
+
+
+#working
+def turnOnLED(key):
+    for i in range(10):
+        GPIO.output(GPIO_PORTS[key],1)
+        time.sleep(0.5)
+        GPIO.output(GPIO_PORTS[key],0)
+        time.sleep(0.5)
+
+        
+def judgeDiscomfort(dci):
+    
+    print("discomfort Index: %f" % dci)
+    if dci < 70:
+        color="w"
+        text="Kaiteki :)"
+    elif 70 <= dci and dci < 75:
+        color="g"
+        text="Choto Kaiteki Janai :)"
+    elif 75 <= dci and dci < 80:
+        color="y"
+        text="Choto Fukai :("
+    elif 80 <= dci:
+        color="r"
+        text="Maji Atsui & Maji Fukai (@o@);"
+        
+    return (text, color)
+    
+
+        
+def getDiscomfortIndex():
+    result = instance.read()
+    if result.is_valid():
+        temp=result.temperature
+        humi=result.humidity
+        print("Last valid input: " + str(datetime.datetime.now()))
+        print("Temperature: %d C" % temp)
+        print("Humidity: %d %%" % humi)
+        discomfortIndex=0.81*temp+0.01*humi*(0.99*temp-14.3)+46.3
+        return discomfortIndex
+
+
+def Control():
+    dci=getDiscomfortIndex()
+    print(dci)
+    text,color=judgeDiscomfort(float(dci))
+    print(text)
+    #print(color)
+    turnOnLED(color)
+
+
+#button part
+def ButtonPart():
+    print("push button!")
+    print("You can get now state in this room")
+    print()
+    while True:
+        btn = GPIO.input(button)
+        if btn == True:
+            print("button is pushed!")
+            Control()
+            print()
+            break
+        time.sleep(1)
+
+ButtonPart()
+    
+#finish
+GPIO.cleanup()
+
+
+
